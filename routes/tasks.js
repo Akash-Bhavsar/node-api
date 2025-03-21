@@ -2,10 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { Pool } = require('pg');
 const jwt = require('jsonwebtoken');
+const { PrismaClient } = require('@prisma/client');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient();
 
 // Authentication middleware to verify JWT tokens
 function authenticateToken(req, res, next) {
@@ -20,26 +19,51 @@ function authenticateToken(req, res, next) {
   });
 }
 
-// GET /api/tasks - Retrieve tasks for the authenticated user
+
+// Regular users only see their own tasks (as an example)
+router.get('/my-tasks', authenticateToken, async (req, res) => {
+  const tasks = await prisma.task.findMany({
+    where: { userId: req.user.id },
+  });
+  res.json(tasks);
+});
+
+// GET /api/tasks - Get all tasks for the authenticated user
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM tasks WHERE user_id = $1', [req.user.id]);
-    res.json(result.rows);
+    let tasks;
+    if (req.user.role === 'ADMIN') {
+      // If the user is an admin, fetch all tasks
+      tasks = await prisma.task.findMany();
+    } else {
+      // If the user is not an admin, fetch only their tasks
+      tasks = await prisma.task.findMany({
+        where: {
+          userId: req.user.id,
+        },
+      });
+    }
+    res.json(tasks);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to fetch tasks' });
+    res.status(500).json({ error: 'Failed to get tasks' });
   }
 });
+
 
 // POST /api/tasks - Create a new task for the authenticated user
 router.post('/', authenticateToken, async (req, res) => {
   const { title, description, status } = req.body;
   try {
-    const result = await pool.query(
-      'INSERT INTO tasks (user_id, title, description, status) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, title, description, status]
-    );
-    res.status(201).json(result.rows[0]);
+    const task = await prisma.task.create({
+      data: {
+        title,
+        description,
+        status,
+        userId: req.user.id,
+      },
+    });
+    res.status(201).json(task);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create task' });
@@ -51,12 +75,29 @@ router.put('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   const { title, description, status } = req.body;
   try {
-    const result = await pool.query(
-      'UPDATE tasks SET title = $1, description = $2, status = $3 WHERE id = $4 AND user_id = $5 RETURNING *',
-      [title, description, status, id, req.user.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
-    res.json(result.rows[0]);
+    const task = await prisma.task.updateMany({
+      where: {
+        id: parseInt(id),
+        userId: req.user.id,
+      },
+      data: {
+        title,
+        description,
+        status,
+      },
+    });
+
+    if (task.count === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    const updatedTask = await prisma.task.findUnique({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    res.json(updatedTask);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update task' });
@@ -67,11 +108,17 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await pool.query(
-      'DELETE FROM tasks WHERE id = $1 AND user_id = $2 RETURNING *',
-      [id, req.user.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    const task = await prisma.task.deleteMany({
+      where: {
+        id: parseInt(id),
+        userId: req.user.id,
+      },
+    });
+
+    if (task.count === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
     res.json({ message: 'Task deleted successfully' });
   } catch (err) {
     console.error(err);
