@@ -33,10 +33,10 @@ router.post('/register', async (req, res) => {
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.sendStatus(401).json({ error: 'Login Invalid or Token missing' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(403).json({ error: 'Unauthorized', message: err.message });
     req.user = user; // Attach user data to request
     req.userId = user.id;
     next();
@@ -123,6 +123,34 @@ router.post('/login', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// DELETE endpoint: Delete a user (requires authentication)
+router.delete('/:id', authenticateToken, async (req, res) => {
+  const userId = parseInt(req.params.id);
+
+  // Check if the user id from token matches the user id from params
+  const user = await prisma.user.findUnique({
+    where: {
+      id: req.userId,
+    },
+  });
+
+  if (req.userId !== userId && user.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Unauthorized: You can only delete your own profile.' });
+  }
+
+  try {
+    await prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 
