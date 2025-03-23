@@ -21,6 +21,7 @@ A simple Node.js API built with Express and PostgreSQL, featuring user authentic
 - **User Authentication:** JWT-based authentication with hashed passwords.
 - **Task Management:** Create, read, update, and delete tasks.
 - **Filtering & Pagination:** Retrieve tasks with filtering and pagination.
+- **Role-Based Access Control:** Admins can view all tasks, while regular users can only view their own.
 - **Input Validation & Sanitization:** Ensures incoming data integrity.
 - **Database Connection Testing:** The server tests DB connectivity before starting.
 
@@ -59,7 +60,8 @@ Ensure PostgreSQL is running and execute the following:
 CREATE TABLE users (
   id SERIAL PRIMARY KEY,
   username VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL
+  password VARCHAR(255) NOT NULL,
+  role VARCHAR(50) DEFAULT 'USER'
 );
 
 CREATE TABLE tasks (
@@ -90,17 +92,20 @@ CREATE TABLE tasks (
 
 - **POST `/api/users/register`** - Register a new user.
 - **POST `/api/users/login`** - Login and receive a JWT token.
+- **GET `/api/users`** - List all users (Admin only).
+- **PUT `/api/users/:id`** - Update a user profile.
+- **DELETE `/api/users/:id`** - Delete a user (Admin or self).
 
 ### Task Endpoints (Require JWT)
 
 Include `Authorization: Bearer <your_token>` in requests.
 
 - **GET `/api/tasks`** - Retrieve tasks with optional filtering and pagination.
+- **GET `/api/tasks/my-tasks`** - Retrieve tasks for the authenticated user.
 - **GET `/api/tasks/:id`** - Retrieve a single task by ID.
 - **POST `/api/tasks`** - Create a new task.
 - **PUT `/api/tasks/:id`** - Update an existing task.
 - **DELETE `/api/tasks/:id`** - Delete a task.
-
 
 ## Testing the API
 
@@ -110,3 +115,7 @@ Include `Authorization: Bearer <your_token>` in requests.
 3. **Test User Registration & Login**.
 4. **Test Protected Endpoints** by including the JWT token.
 5. **Validate Error Handling** by sending invalid or missing data.
+
+## License
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
