@@ -1,14 +1,24 @@
-const express = require('express');
-const router = express.Router();
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
-const { PrismaClient } = require('@prisma/client');
+import express, { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import { PrismaClient, Role } from '@prisma/client';
+import { authenticateToken } from '../middlewares/authenticateToken';
 
+const router = express.Router();
 const prisma = new PrismaClient();
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+      userId?: number;
+    }
+  }
+}
+
 // REGISTER endpoint: Create a new user
-router.post('/register', async (req, res) => {
-  const { username, password } = req.body;
+router.post('/register', async (req: Request, res: Response) => {
+  const { username, password } = req.body as { username: string; password: string };
   try {
     // Hash the password before storing it
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -29,22 +39,8 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Authentication middleware to verify JWT tokens
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  if (!token) return res.sendStatus(401).json({ error: 'Login Invalid or Token missing' });
-
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) return res.status(403).json({ error: 'Unauthorized', message: err.message });
-    req.user = user; // Attach user data to request
-    req.userId = user.id;
-    next();
-  });
-}
-
 // GET endpoint: List all users (requires authentication)
-router.get('/users', authenticateToken, async (req, res) => {
+router.get('/users', authenticateToken, async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
       select: {
@@ -58,27 +54,27 @@ router.get('/users', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to list users' });
   }
 });
+
 // PUT endpoint: Update a user (requires authentication)
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   const userId = parseInt(req.params.id);
-  const { username, password, role } = req.body;
+  const { username, password, role } = req.body as { username: string; password?: string; role?: Role };
 
   // Check if the user id from token matches the user id from params
   if (req.userId !== userId) {
-    return res.status(403).json({ error: 'Unauthorized: You can only update your own profile.' });
+    res.status(403).json({ error: 'Unauthorized: You can only update your own profile.' });
+    return;
   }
 
   try {
     // Hash the password if it's being updated
-    let hashedPassword;
+    let hashedPassword: string | undefined;
     if (password) {
       hashedPassword = await bcrypt.hash(password, 10);
     }
 
     const updatedUser = await prisma.user.update({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
       data: {
         username: username,
         password: hashedPassword ? hashedPassword : undefined,
@@ -91,32 +87,35 @@ router.put('/:id', authenticateToken, async (req, res) => {
       },
     });
     res.json(updatedUser);
+    return;
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update user' });
+    return;
   }
 });
 
+
 // LOGIN endpoint: Authenticate user and return a JWT token
-router.post('/login', async (req, res) => {
-  const { username, password } = req.body;
+router.post('/login', async (req: Request, res: Response): Promise<void> => {
+  const { username, password } = req.body as { username: string; password: string };
   try {
     const user = await prisma.user.findUnique({
-      where: {
-        username: username,
-      },
+      where: { username: username },
     });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
     }
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      res.status(401).json({ error: 'Invalid credentials' });
+      return;
     }
     // Generate a JWT token valid for 1 hour
     const token = jwt.sign(
       { id: user.id, username: user.username },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET as string,
       { expiresIn: '1h' }
     );
     res.json({ token });
@@ -127,31 +126,30 @@ router.post('/login', async (req, res) => {
 });
 
 // DELETE endpoint: Delete a user (requires authentication)
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   const userId = parseInt(req.params.id);
 
-  // Check if the user id from token matches the user id from params
-  const user = await prisma.user.findUnique({
-    where: {
-      id: req.userId,
-    },
+  // Check if the user id from token matches the user id from params or if the user is an ADMIN
+  const currentUser = await prisma.user.findUnique({
+    where: { id: req.userId },
   });
 
-  if (req.userId !== userId && user.role !== 'ADMIN') {
-    return res.status(403).json({ error: 'Unauthorized: You can only delete your own profile.' });
+  if (req.userId !== userId && currentUser?.role !== 'ADMIN') {
+    res.status(403).json({ error: 'Unauthorized: You can only delete your own profile.' });
+    return;
   }
 
   try {
     await prisma.user.delete({
-      where: {
-        id: userId,
-      },
+      where: { id: userId },
     });
     res.status(200).json({ message: 'User deleted successfully' });
+    return;
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete user' });
+    return;
   }
 });
 
-module.exports = router;
+export default router;
