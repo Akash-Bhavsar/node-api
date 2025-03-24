@@ -14,7 +14,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"supersecret\"\n}",
+					"raw": "{\n  \"username\": \"Akash\",\n  \"password\": \"supersecret\",\n  \"role\": \"ADMIN\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -22,12 +22,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:3000/api/users/register",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/users/register",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"users",
@@ -39,6 +37,22 @@
 		},
 		{
 			"name": "Login",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Parse the response body as JSON",
+							"let jsonData = pm.response.json();",
+							"",
+							"// Store the token in an environment variable named 'token'",
+							"pm.environment.set(\"token\", jsonData.token);",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
 			"request": {
 				"method": "POST",
 				"header": [],
@@ -52,16 +66,90 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:3000/api/users/login",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/users/login",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"users",
 						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update User",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "PUT",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"supersecret\",\n  \"role\": \"ADMIN\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{Localhost}}/api/users/1",
+					"host": [
+						"{{Localhost}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete User",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "{{token}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "DELETE",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"supersecret\",\n  \"role\": \"ADMIN\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{Localhost}}/api/users/4",
+					"host": [
+						"{{Localhost}}"
+					],
+					"path": [
+						"api",
+						"users",
+						"4"
 					]
 				}
 			},
@@ -75,7 +163,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImlhdCI6MTc0MjI4ODI0OSwiZXhwIjoxNzQyMjkxODQ5fQ.HRGX-zQsQQ0fuIvksoU1CJL5R0gLi01hoKURIJ7JGpY",
+							"value": "{{token}}",
 							"type": "string"
 						}
 					]
@@ -84,7 +172,7 @@
 				"header": [],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"title\": \"Finish API project\",\n  \"description\": \"Implement the Task Manager API endpoints\",\n  \"status\": \"pending\"\n}\n",
+					"raw": "{\n  \"title\": \"Task 1\",\n  \"description\": \"Tast 1 : get prisma into node\",\n  \"status\": \"draft\"\n}\n",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -92,12 +180,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:3000/api/tasks",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/tasks",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"tasks"
@@ -117,7 +203,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImlhdCI6MTc0MjI4ODI0OSwiZXhwIjoxNzQyMjkxODQ5fQ.HRGX-zQsQQ0fuIvksoU1CJL5R0gLi01hoKURIJ7JGpY",
+							"value": "{{token}}",
 							"type": "string"
 						}
 					]
@@ -134,12 +220,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:3000/api/tasks/",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/tasks/",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"tasks",
@@ -157,7 +241,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImlhdCI6MTc0MjI4ODI0OSwiZXhwIjoxNzQyMjkxODQ5fQ.HRGX-zQsQQ0fuIvksoU1CJL5R0gLi01hoKURIJ7JGpY",
+							"value": "{{token}}",
 							"type": "string"
 						}
 					]
@@ -165,12 +249,10 @@
 				"method": "DELETE",
 				"header": [],
 				"url": {
-					"raw": "http://localhost:3000/api/tasks/1",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/tasks/1",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"tasks",
@@ -188,7 +270,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImlhdCI6MTc0MjI4ODI0OSwiZXhwIjoxNzQyMjkxODQ5fQ.HRGX-zQsQQ0fuIvksoU1CJL5R0gLi01hoKURIJ7JGpY",
+							"value": "{{token}}",
 							"type": "string"
 						}
 					]
@@ -205,12 +287,10 @@
 					}
 				},
 				"url": {
-					"raw": "http://localhost:3000/api/tasks/1",
-					"protocol": "http",
+					"raw": "{{Localhost}}/api/tasks/1",
 					"host": [
-						"localhost"
+						"{{Localhost}}"
 					],
-					"port": "3000",
 					"path": [
 						"api",
 						"tasks",
