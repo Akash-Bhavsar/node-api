@@ -1,121 +1,145 @@
-# Node API
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A simple Node.js API built with Express and PostgreSQL, featuring user authentication with JWT and basic CRUD operations for task management. This project demonstrates best practices for API development, security, and database integration.
 
-## Table of Contents
+## Overview
 
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Environment Variables](#environment-variables)
-- [Database Setup](#database-setup)
-- [Running the Application](#running-the-application)
-- [API Endpoints](#api-endpoints)
-- [Testing the API](#testing-the-api)
-- [License](#license)
+This Node API is built with Express, Prisma, and PostgreSQL. It provides endpoints for user and task management using JWT authentication and role-based access control.
 
 ## Features
 
-- **User Authentication:** JWT-based authentication with hashed passwords.
-- **Task Management:** Create, read, update, and delete tasks.
-- **Filtering & Pagination:** Retrieve tasks with filtering and pagination.
-- **Role-Based Access Control:** Admins can view all tasks, while regular users can only view their own.
-- **Input Validation & Sanitization:** Ensures incoming data integrity.
-- **Database Connection Testing:** The server tests DB connectivity before starting.
+**User Endpoints:**
 
-## Prerequisites
+- Register a new user.
 
-- [Node.js](https://nodejs.org/) (v12 or higher)
-- [PostgreSQL](https://www.postgresql.org/) installed and running
-- [npm](https://www.npmjs.com/)
+- Login using JWT-based authentication.
+
+- List all users (authenticated access).
+
+- Update user profiles (users can only update their own profile).
+
+**Task Endpoints:**
+
+- Create, update, and delete tasks.
+
+- Get tasks for authenticated users.
+
+- Admin users can view all tasks while regular users see only their own.
+
+**Database:**
+
+- PostgreSQL database managed with Prisma ORM for type-safe queries.
 
 ## Installation
 
-1. **Clone the Repository:**
-   ```bash
-   git clone https://github.com/Akash-Bhavsar/node-api.git
-   cd node-api
-   ```
+1. Clone the repository:
 
-2. **Install Dependencies:**
-   ```bash
-   npm install
-   ```
+```bash
 
-3. **Set Up Environment Variables:**
-   Create a `.env` file in the root and add:
-   ```env
-   DATABASE_URL=postgres://your_db_user:your_db_password@localhost:5432/your_db_name
-   JWT_SECRET=your_jwt_secret_key
-   PORT=3000
-   ```
+git clone https://github.com/Akash-Bhavsar/node-api.git
 
-## Database Setup
-
-Ensure PostgreSQL is running and execute the following:
-
-```sql
-CREATE TABLE users (
-  id SERIAL PRIMARY KEY,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password VARCHAR(255) NOT NULL,
-  role VARCHAR(50) DEFAULT 'USER'
-);
-
-CREATE TABLE tasks (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users(id),
-  title VARCHAR(255),
-  description TEXT,
-  status VARCHAR(50)
-);
 ```
 
-## Running the Application
+2. Navigate to the project directory:
+```bash
 
-1. **Start the Server:**
-   ```bash
-   node index.js
-   ```
+cd node-api
 
-2. **Expected Output:**
-   ```
-   Database connection successful!
-   Server running on port 3000
-   ```
+```
+
+3. Install dependencies:
+
+  
+
+```bash
+
+npm install
+
+```
+
+4. Configure Environment Variables:
+
+  
+Create a `.env` file in the root directory with the following content (adjust values as needed):
+
+```
+
+DATABASE_URL=postgresql://user:password@localhost:5432/database_name
+
+JWT_SECRET=your_jwt_secret
+
+PORT=3000
+
+```
+
+5. Set Up the Database:
+
+Run Prisma migrations to create the database tables:
+
+  
+
+```bash
+
+npx prisma migrate dev --name init
+
+```
+
+
+Or, for quick development without migration history:
+
+```bash
+
+npx prisma db push
+
+```
+
+6. Start the Server:
+
+  
+
+```bash
+
+npm start
+
+```
+
+The server runs on the port specified in your `.env` file (default: 3000).
+
+## Testing
+
+Integration tests are written using Vitest and Supertest. To run the tests, execute:
+
+```bash
+
+npm  test
+
+```
+
+Tests cover user registration, login, listing users, and task CRUD operations.
 
 ## API Endpoints
 
-### User Endpoints
+**User Endpoints:**
 
-- **POST `/api/users/register`** - Register a new user.
-- **POST `/api/users/login`** - Login and receive a JWT token.
-- **GET `/api/users`** - List all users (Admin only).
-- **PUT `/api/users/:id`** - Update a user profile.
-- **DELETE `/api/users/:id`** - Delete a user (Admin or self).
+-  `POST /api/users/register` -> Register a new user.
 
-### Task Endpoints (Require JWT)
+-  `POST /api/users/login` -> Login and receive a JWT token.
 
-Include `Authorization: Bearer <your_token>` in requests.
+-  `GET /api/users/users` -> List all users (authentication required).
 
-- **GET `/api/tasks`** - Retrieve tasks with optional filtering and pagination.
-- **GET `/api/tasks/my-tasks`** - Retrieve tasks for the authenticated user.
-- **GET `/api/tasks/:id`** - Retrieve a single task by ID.
-- **POST `/api/tasks`** - Create a new task.
-- **PUT `/api/tasks/:id`** - Update an existing task.
-- **DELETE `/api/tasks/:id`** - Delete a task.
+-  `PUT /api/users/:id` -> Update a user's profile (authentication required; users can only update their own profile).
 
-## Testing the API
+**Task Endpoints:**
 
-1. **Use Postman or cURL**
-   - Download the [Postman Collection](Node%20API.postman_collection.json) and import it into Postman.
-2. **Set Up Environment Variables** in Postman for `baseUrl` and `token`.
-3. **Test User Registration & Login**.
-4. **Test Protected Endpoints** by including the JWT token.
-5. **Validate Error Handling** by sending invalid or missing data.
+-  `GET /api/tasks/my-tasks` -> Get tasks for the authenticated user.
+
+-  `GET /api/tasks` -> Get all tasks (ADMIN only; non-admin users see only their tasks).
+
+-  `POST /api/tasks` -> Create a new task.
+
+-  `PUT /api/tasks/:id` -> Update an existing task.
+
+-  `DELETE /api/tasks/:id` -> Delete a task.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
