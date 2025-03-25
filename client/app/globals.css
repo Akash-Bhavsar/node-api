@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --redish: #EE6055;
+  --greenish: #60D394;
+  --lightGreen: #AAF683;
+  --yellowish: #FFD97D;
+  --peachy: #FF9B85;
+  --background: #ffffff;
+  --foreground: #171717;
+  --tw-shadow-color: #000; /* Add this line */
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Add the following to make the colors available in Tailwind */
+.bg-redish {
+  background-color: var(--redish);
+}
+
+.text-redish {
+  color: var(--redish);
+}
+
+.bg-greenish {
+  background-color: var(--greenish);
+}
+
+.text-greenish {
+  color: var(--greenish);
+}
+
+.bg-lightGreen {
+  background-color: var(--lightGreen);
+}
+
+.text-lightGreen {
+  color: var(--lightGreen);
+}
+
+.bg-yellowish {
+  background-color: var(--yellowish);
+}
+
+.text-yellowish {
+  color: var(--yellowish);
+}
+
+.bg-peachy {
+  background-color: var(--peachy);
+}
+
+.text-peachy {
+  color: var(--peachy);
+}

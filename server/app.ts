@@ -1,9 +1,10 @@
-import express, { Application, Request, Response } from 'express';
+import express, {Request, Response } from 'express';
 import morgan from 'morgan';
 import logger from './utils/logger';
 import dotenv from 'dotenv';
 import userRoutes from './routes/users';
 import taskRoutes from './routes/tasks';
+import cors from 'cors';
 
 dotenv.config();
 
@@ -29,6 +30,9 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to the Task Manager API.');
 });
 
-
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
 export default app;
