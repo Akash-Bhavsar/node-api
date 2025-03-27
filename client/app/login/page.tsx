@@ -2,21 +2,22 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { loginUser } from "@/lib/api/auth";
+import { loginUser} from "@/lib/api/auth";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const router = useRouter();
 
     const handleLogin = async (e: React.FormEvent) => {
       e.preventDefault();
       try {
-        const data = await loginUser(email, password);
-        console.log("Login successful:", data);
-        // Store token if using JWT, or do nothing if using cookies
-        // e.g. localStorage.setItem("token", data.token);
+      const data = await loginUser(email, password);
+      console.log("Login successful:", data);
+      router.push("/dashboard");
       } catch (error) {
-        console.error(error);
+      console.error(error);
       }
     };
 

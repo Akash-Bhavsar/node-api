@@ -1,22 +1,39 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { VerifyErrors, JwtPayload } from 'jsonwebtoken';
+import { Role } from '@prisma/client';
+
+interface DecodedUser extends JwtPayload {
+  id: number;
+  username: string;
+  role?: Role;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: DecodedUser;
+      userId?: number; // strictly a number, no null
+    }
+  }
+}
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction): void {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Expected format: "Bearer TOKEN"
-
+  const token = req.cookies?.accessToken;
   if (!token) {
     res.status(401).json({ error: 'Login Invalid or Token missing' });
-    return;
+    return
   }
 
-  jwt.verify(token, process.env.JWT_SECRET as string, (err, user) => {
-    if (err) {
-      res.status(403).json({ error: 'Unauthorized', message: err.message });
-      return;
+  // Provide either no options or an explicit empty object as the third arg:
+  jwt.verify(token, process.env.JWT_SECRET as string, (err: VerifyErrors | null, decoded: unknown) => {
+    if (err || !decoded) {
+      return res.status(403).json({ error: 'Unauthorized', message: err?.message });
     }
-    req.user = user; // Attach the decoded user to the request
-    req.userId = (user as any).id; // Set userId for convenience
+
+    // If you’re sure your payload always has `id`, `username`, etc., you can cast
+    const decodedUser = decoded as DecodedUser;
+    req.user = decodedUser;
+    req.userId = decodedUser.id;
     next();
   });
 }

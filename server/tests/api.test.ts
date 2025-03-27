@@ -1,16 +1,18 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import app from '../app.js'; // Ensure your Express app is exported from this file
+import app from '../app.js'; // Your Express app export
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 describe('User Endpoints', () => {
-  let token = '';
-  let userId = null;
+  let userCookie: string[] = []; // We'll store the Set-Cookie array here
+  let userId: number | null = null;
 
-  let createdUserIds = []; // To store IDs of users created during tests
-  let createdTaskIds = []; // To store IDs of tasks created during tests
+  // Store created user and task IDs for later cleanup
+  let createdUserIds: number[] = [];
+  let createdTaskIds: number[] = [];
+
   beforeAll(async () => {
     // Check if the test user exists and delete it
     const existingUser = await prisma.user.findUnique({
@@ -25,6 +27,7 @@ describe('User Endpoints', () => {
       console.log('Existing test user deleted');
     }
   });
+
   test('Register a new user', async () => {
     try {
       const res = await request(app)
@@ -32,19 +35,24 @@ describe('User Endpoints', () => {
         .send({
           username: 'vitestuser',
           password: 'vitestpassword',
+          role: 'ADMIN'
         });
       expect(res.statusCode).toEqual(201);
       expect(res.body).toHaveProperty('id');
       expect(res.body).toHaveProperty('username');
       userId = res.body.id;
-      createdUserIds.push(userId); // Store the created user's ID
+
+      // Only push to createdUserIds if userId is not null
+      if (userId !== null) {
+        createdUserIds.push(userId);
+      }
     } catch (error) {
       console.error('Test failed during user registration');
       throw error; // Re-throw the error to fail the test
     }
   });
 
-  test('Login user and receive token', async () => {
+  test('Login user and receive cookie', async () => {
     const res = await request(app)
       .post('/api/users/login')
       .send({
@@ -52,14 +60,29 @@ describe('User Endpoints', () => {
         password: 'vitestpassword',
       });
     expect(res.statusCode).toEqual(200);
-    expect(res.body).toHaveProperty('token');
-    token = res.body.token;
+
+    // Check for Set-Cookie header
+    debugger;
+    const setCookieHeader = res.headers['set-cookie'];
+    expect(setCookieHeader).toBeDefined();
+    expect(Array.isArray(setCookieHeader)).toBe(true);
+    expect(setCookieHeader[0]).toContain('accessToken=');
+    expect(setCookieHeader[0]).toContain('Path=/');
+    expect(setCookieHeader[0]).toContain('HttpOnly');
+    expect(setCookieHeader[0]).toContain('SameSite=Lax');
+
+    if (Array.isArray(setCookieHeader)) {
+      userCookie = setCookieHeader;
+    } else {
+      userCookie = [setCookieHeader];
+    }
   });
 
   test('List users (requires authentication)', async () => {
     const res = await request(app)
       .get('/api/users/users')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', userCookie)
+      .send();
     expect(res.statusCode).toEqual(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
@@ -67,55 +90,55 @@ describe('User Endpoints', () => {
   test('Update user profile', async () => {
     const res = await request(app)
       .put(`/api/users/${userId}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', userCookie)
       .send({
         username: 'updatedvitestuser',
         password: 'newpassword',
-        role: 'ADMIN'
+        role: 'ADMIN',
       });
     expect(res.statusCode).toEqual(200);
     expect(res.body.username).toEqual('updatedvitestuser');
     expect(res.body.role).toEqual('ADMIN');
   });
 
-    // Cleanup function to delete users and tasks
-    const cleanup = async () => {
-      for (const userId of createdUserIds) {
-        try {
-          await prisma.user.delete({
-            where: { id: userId },
-          });
-          console.log('User deleted:', userId);
-        } catch (error) {
-          console.error('Error deleting user:', userId, error);
-        }
+  // Cleanup function to delete users and tasks
+  const cleanup = async () => {
+    for (const uid of createdUserIds) {
+      try {
+        await prisma.user.delete({
+          where: { id: uid },
+        });
+        console.log('User deleted:', uid);
+      } catch (error) {
+        console.error('Error deleting user:', uid, error);
       }
-      createdUserIds = []; // Clear the array after deletion
+    }
+    createdUserIds = [];
 
-          for (const taskId of createdTaskIds) {
-            try {
-              await prisma.task.delete({
-                where: { id: taskId },
-              });
-              console.log('Task deleted:', taskId);
-            } catch (error) {
-              console.error('Error deleting task:', taskId, error);
-            }
-          }
-          createdTaskIds = []; // Clear the array after deletion
-    };
+    for (const tid of createdTaskIds) {
+      try {
+        await prisma.task.delete({
+          where: { id: tid },
+        });
+        console.log('Task deleted:', tid);
+      } catch (error) {
+        console.error('Error deleting task:', tid, error);
+      }
+    }
+    createdTaskIds = [];
+  };
 
-    afterAll(async () => {
-      await cleanup(); // Call cleanup after all tests
-      await prisma.$disconnect();
-    });
+  afterAll(async () => {
+    await cleanup();
+    await prisma.$disconnect();
+  });
 });
 
 describe('Task Endpoints', () => {
-  let token = '';
-  let taskId = null;
-  let taskUserId = null;
-  let createdTaskIds = [];
+  let taskCookie: string[] = [];
+  let taskId: number | null = null;
+  let taskUserId: number | null = null;
+  let createdTaskIds: number[] = [];
 
   beforeAll(async () => {
     // Check if the test user exists
@@ -127,40 +150,58 @@ describe('Task Endpoints', () => {
       // Create a test user for task tests if one doesn't exist
       const registerRes = await request(app)
         .post('/api/users/register')
-        .send({ username: 'taskvitestuser', password: 'taskvitestpassword' });
+        .send({ username: 'taskvitestuser', password: 'taskvitestpassword', role: 'ADMIN' });
       existingTaskUser = registerRes.body;
     }
+
+    // Check for null before accessing 'existingTaskUser.id'
+    if (!existingTaskUser) {
+      throw new Error('Failed to create or retrieve test user');
+    }
     taskUserId = existingTaskUser.id;
-    // Login user to retrieve token
+
+    // Login user to retrieve session cookie
     const loginRes = await request(app)
       .post('/api/users/login')
       .send({ username: 'taskvitestuser', password: 'taskvitestpassword' });
-    token = loginRes.body.token;
+    expect(loginRes.statusCode).toEqual(200);
+
+    const setCookieHeader = loginRes.headers['set-cookie'];
+    expect(setCookieHeader).toBeDefined();
+
+    if (Array.isArray(setCookieHeader)) {
+      taskCookie = setCookieHeader;
+    } else {
+      taskCookie = [setCookieHeader];
+    }
   });
 
   test('Create a new task', async () => {
     const res = await request(app)
       .post('/api/tasks')
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', taskCookie)
       .send({
         title: 'Vitest Task',
         description: 'Task for vitest tests',
-        status: 'pending'
+        status: 'pending',
       });
     expect(res.statusCode).toEqual(201);
     expect(res.body).toHaveProperty('id');
     expect(res.body.title).toEqual('Vitest Task');
     taskId = res.body.id;
-    createdTaskIds.push(taskId);
+
+    // Only push if not null
+    if (taskId !== null) {
+      createdTaskIds.push(taskId);
+    }
   });
 
   test('Get my tasks', async () => {
     const res = await request(app)
       .get('/api/tasks/my-tasks')
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', taskCookie);
     expect(res.statusCode).toEqual(200);
     expect(Array.isArray(res.body)).toBe(true);
-    // Optionally, verify that each task's userId matches the logged-in user
     if (res.body.length > 0) {
       expect(res.body[0].userId).toBeDefined();
     }
@@ -169,11 +210,11 @@ describe('Task Endpoints', () => {
   test('Update the task', async () => {
     const res = await request(app)
       .put(`/api/tasks/${taskId}`)
-      .set('Authorization', `Bearer ${token}`)
+      .set('Cookie', taskCookie)
       .send({
         title: 'Updated Task Title',
         description: 'Updated description',
-        status: 'completed'
+        status: 'completed',
       });
     expect(res.statusCode).toEqual(200);
     expect(res.body.title).toEqual('Updated Task Title');
@@ -183,7 +224,7 @@ describe('Task Endpoints', () => {
   test('Delete the task', async () => {
     const res = await request(app)
       .delete(`/api/tasks/${taskId}`)
-      .set('Authorization', `Bearer ${token}`);
+      .set('Cookie', taskCookie);
     expect(res.statusCode).toEqual(200);
     expect(res.body.message).toEqual('Task deleted successfully');
   });
@@ -192,14 +233,14 @@ describe('Task Endpoints', () => {
     // Delete the test user
     if (taskUserId) {
       try {
-      await prisma.user.delete({
-        where: { id: taskUserId },
-      });
-      console.log('Test user deleted:', taskUserId);
+        await prisma.user.delete({
+          where: { id: taskUserId },
+        });
+        console.log('Test user deleted:', taskUserId);
       } catch (error) {
-      console.error('Error deleting test user:', taskUserId, error);
+        console.error('Error deleting test user:', taskUserId, error);
       }
     }
     await prisma.$disconnect();
-    });
+  });
 });

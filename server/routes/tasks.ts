@@ -1,15 +1,16 @@
 import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { authenticateToken } from '../middlewares/authenticateToken';
-import logger from '../utils/logger'; // <---- Winston logger import
+import logger from '../utils/logger';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
-// GET tasks for the authenticated user (regular users)
+// GET tasks for the authenticated user
 router.get('/my-tasks', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any).id;
+    // Since we set req.userId in authenticateToken, we can rely on it here.
+    const userId = req.userId!;
     logger.info(`GET /my-tasks called by userId=${userId}`);
 
     const tasks = await prisma.task.findMany({
@@ -24,10 +25,12 @@ router.get('/my-tasks', authenticateToken, async (req: Request, res: Response) =
   }
 });
 
-// GET tasks: If user role is ADMIN, get all tasks; else only their tasks
+// GET all tasks: If user is ADMIN, get all tasks; otherwise get only theirs
 router.get('/', authenticateToken, async (req: Request, res: Response) => {
   try {
-    const user = req.user as any;
+    // We also store the entire user payload in req.user
+    // By default we have: req.user?.id, req.user?.username, req.user?.role
+    const user = req.user!; // '!' because we know it's set if token is valid
     logger.info(`GET /tasks called by userId=${user.id}, role=${user.role}`);
 
     let tasks;
@@ -38,7 +41,6 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
       tasks = await prisma.task.findMany({ where: { userId: user.id } });
       logger.info(`USER userId=${user.id} fetched ${tasks.length} tasks`);
     }
-
     res.json(tasks);
   } catch (err) {
     logger.error(`Failed to get tasks for /: ${(err as Error).message}`, { error: err });
@@ -46,7 +48,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/tasks - Create a new task
+// POST /tasks - Create a new task
 router.post('/', authenticateToken, async (req: Request, res: Response) => {
   const { title, description, status } = req.body as {
     title: string;
@@ -55,7 +57,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
   };
 
   try {
-    const user = req.user as any;
+    const user = req.user!;
     logger.info(`POST /tasks called by userId=${user.id} to create task: title="${title}"`);
 
     const task = await prisma.task.create({
@@ -75,7 +77,7 @@ router.post('/', authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-// PUT /api/tasks/:id - Update an existing task
+// PUT /tasks/:id - Update an existing task
 router.put('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
   const { title, description, status } = req.body as {
@@ -85,14 +87,12 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response): Promi
   };
 
   try {
-    const user = req.user as any;
+    const user = req.user!;
     logger.info(`PUT /tasks/${id} by userId=${user.id} with data={title:${title}, status:${status}}`);
 
+    // updateMany returns the count of updated records
     const result = await prisma.task.updateMany({
-      where: {
-        id: parseInt(id),
-        userId: user.id,
-      },
+      where: { id: parseInt(id), userId: user.id },
       data: { title, description, status },
     });
 
@@ -102,6 +102,7 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response): Promi
       return;
     }
 
+    // We can fetch the updated task to return it
     const updatedTask = await prisma.task.findUnique({
       where: { id: parseInt(id) },
     });
@@ -114,26 +115,23 @@ router.put('/:id', authenticateToken, async (req: Request, res: Response): Promi
   }
 });
 
-// DELETE /api/tasks/:id - Delete a task
+// DELETE /tasks/:id - Delete a task
 router.delete('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   const { id } = req.params;
 
   try {
-    const user = req.user as any;
+    const user = req.user!;
     logger.info(`DELETE /tasks/${id} called by userId=${user.id}`);
 
-    const result = await prisma.task.deleteMany({
-      where: {
-        id: parseInt(id),
-        userId: user.id,
-      },
-    });
-
-    if (result.count === 0) {
-      logger.warn(`User userId=${user.id} attempted to delete non-existent or unauthorized task id=${id}`);
-      res.status(404).json({ error: 'Task not found' });
-      return;
+    if (user.role !== 'ADMIN') {
+      logger.warn(`User userId=${user.id} attempted to delete task id=${id} without ADMIN privileges`);
+      res.status(403).json({ error: 'Unauthorized: Only ADMIN users can delete tasks.' });
+      return
     }
+
+    await prisma.task.delete({
+      where: { id: parseInt(id) },
+    });
 
     logger.info(`Task (id=${id}) deleted successfully by userId=${user.id}`);
     res.json({ message: 'Task deleted successfully' });

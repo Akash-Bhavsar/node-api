@@ -5,12 +5,19 @@ import dotenv from 'dotenv';
 import userRoutes from './routes/users';
 import taskRoutes from './routes/tasks';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3000;
 
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+const port = process.env.PORT || 3000;
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.use(
@@ -30,9 +37,5 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Welcome to the Task Manager API.');
 });
 
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
 
 export default app;
